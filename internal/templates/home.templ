@@ -22,11 +22,9 @@ templ Home(light *states.Light) {
 			}
 			<button id="light" class="bg-marino-700 text-beauty-50 font-bold py-2 px-4 rounded" hx-post="/toggle-light">{ buttonText }</button>
 		</div>
-		<form id="color" class="mt-4 flex justify-center items-center space-x-4">
-			<label for="color-picker" class="text-marino-700 font-bold">Choose color:</label>
-			<input id="color-picker" type="color" name="color" value={ light.Hex() } class="w-12 h-12 p-1 border-2 border-marino-700 rounded-full"/>
-			<button class="bg-beauty-700 hover:bg-beauty-900 text-beauty-50 font-bold py-2 px-4 rounded" hx-post="/set-color">Set color</button>
-		</form>
+		<div class="mt-4 flex justify-center items-center space-x-4">
+			<input id="color-picker" type="color" name="color" value={ light.Hex() } hx-post="/set-color" hx-trigger="input delay:50ms" class="w-12 h-12 p-1 border-2 border-marino-700 rounded-full"/>
+		</div>
 	</div>
 	<!-- Footer -->
 	<div class="mt-8 text-center text-marino-700">
