@@ -50,7 +50,7 @@ templ Layout(contents templ.Component, title string) {
 
 templ maybeValidationError(errors map[string]string, id string) {
 	if msg, ok := errors[id]; ok {
-		<p class="text-red-500 text-xs mt-1">
+		<p class="">
 			{ msg }
 		</p>
 	}

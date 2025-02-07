@@ -19,7 +19,7 @@ import (
 func main() {
 	logger := log.New(os.Stdout, "[Main] ", log.LstdFlags)
 
-	port := 9000
+	port := 9001
 
 	dbPool, err := sql.Open("sqlite", "db.sqlite")
 	if err != nil {
