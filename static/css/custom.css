@@ -1,12 +1,48 @@
-/* Custom CSS rules go in here */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-[x-cloak] {
-  display: none !important;
-}
-
-.smooth {
-  transition: all 1s ease-in;
+@theme {
+  --color-beauty-50: #fefbfb;
+  --color-beauty-100: #fcf3f3;
+  --color-beauty-200: #faeaeb;
+  --color-beauty-300: #f7dee0;
+  --color-beauty-400: #f5d6d8;
+  --color-beauty-500: #f2c9cc;
+  --color-beauty-600: #e1848a;
+  --color-beauty-700: #d03a44;
+  --color-beauty-800: #90232a;
+  --color-beauty-900: #461114;
+  --color-beauty-950: #25090b;
+  --color-marino-50: #e9eff7;
+  --color-marino-100: #d6e1f0;
+  --color-marino-200: #adc3e1;
+  --color-marino-300: #83a6d2;
+  --color-marino-400: #5685c2;
+  --color-marino-500: #3c6aa6;
+  --color-marino-600: #2f5483;
+  --color-marino-700: #254165;
+  --color-marino-800: #182b43;
+  --color-marino-900: #0c1622;
+  --color-marino-950: #050a0f;
+  --color-fuel-50: #fef8ec;
+  --color-fuel-100: #fceed4;
+  --color-fuel-200: #fadda8;
+  --color-fuel-300: #f7cc7d;
+  --color-fuel-400: #f4bc52;
+  --color-fuel-500: #f2ac29;
+  --color-fuel-600: #d38e0d;
+  --color-fuel-700: #9f6a0a;
+  --color-fuel-800: #6a4706;
+  --color-fuel-900: #352303;
+  --color-fuel-950: #1d1302;
+  --color-flamingo-50: #feedec;
+  --color-flamingo-100: #fcdcd9;
+  --color-flamingo-200: #fab8b3;
+  --color-flamingo-300: #f7958c;
+  --color-flamingo-400: #f57266;
+  --color-flamingo-500: #f24c3d;
+  --color-flamingo-600: #e5210f;
+  --color-flamingo-700: #ac190c;
+  --color-flamingo-800: #731108;
+  --color-flamingo-900: #390804;
+  --color-flamingo-950: #1d0402;
 }
