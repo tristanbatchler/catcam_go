@@ -1,0 +1,127 @@
+package templates
+
+import (
+	"catcam_go/internal/db"
+	"catcam_go/internal/store/users"
+	"fmt"
+)
+
+templ AddUserForm(formData db.User, errors map[string]string) {
+	<form
+		hx-post="/user"
+		hx-swap="outerHTML"
+		class=""
+		id="add-user-form"
+	>
+		<div class="">
+			{{ id := "username" }}
+			<label for={ id } class="">Username</label>
+			<input
+				type="text"
+				name={ id }
+				class=""
+				value={ formData.Username }
+				required
+			/>
+			@maybeValidationError(errors, id)
+		</div>
+		<div class="">
+			{{ id = "password" }}
+			<label for={ id } class="">Password</label>
+			<input
+				type="password"
+				id={ fmt.Sprintf("add-user-form-%s", id) }
+				name={ id }
+				class=""
+				required
+			/>
+			@maybeValidationError(errors, id)
+		</div>
+		<div class="">
+			{{ id = "confirm-password" }}
+			<label for={ id } class="">Confirm Password</label>
+			<input
+				type="password"
+				name={ id }
+				class=""
+				required
+				onkeyup="this.setCustomValidity('')"
+				hx-on:htmx:validation:validate="
+					if (this.value !== document.getElementById('add-user-form-password').value) { 
+						this.setCustomValidity('Passwords must match');
+						htmx.find(#add-user-form).reportValidity();
+					}"
+			/>
+			@maybeValidationError(errors, id)
+		</div>
+		<div class="">
+			<button
+				type="submit"
+				class=""
+			>
+				Add User
+			</button>
+			@spinner()
+		</div>
+	</form>
+}
+
+templ NoUsers() {
+	<div id="no-users" class="">
+		<p>No users found</p>
+	</div>
+}
+
+templ UsersList(users []db.User, userStore *users.UserStore) {
+	<div class="users">
+		<article class="">
+			<ul id="">
+				for _, user := range users {
+					@User(user)
+				}
+			</ul>
+			if len(users) <= 0 {
+				@NoUsers()
+			}
+		</article>
+	</div>
+}
+
+templ User(user db.User) {
+	{{ cssSelector := fmt.Sprintf("user-%d", user.ID) }}
+	{{ deleteResponseCssSelector := fmt.Sprintf("delete-response-%d", user.ID) }}
+	<li id={ cssSelector } hx-swap="outerHTML" hx-ext="response-targets">
+		<a
+			href="#"
+			class=""
+			hx-delete={ fmt.Sprintf("/user/%d", user.ID) }
+			hx-confirm={ fmt.Sprintf("Are you sure you want to delete %s?", user.Username) }
+			hx-target-error={ "#" + deleteResponseCssSelector }
+			hx-swap="innerHTML"
+		>
+			<div class="">
+				<div>
+					<strong class="">{ user.Username }</strong>
+					<p class="">
+						if user.CreatedAt.Valid {
+							Created at { user.CreatedAt.Time.Format("2 Jan 2006") }
+						} else {
+							Unknown creation date
+						}
+					</p>
+				</div>
+				<div class="">
+					<p id={ deleteResponseCssSelector } class=""></p>
+				</div>
+				@spinner()
+			</div>
+		</a>
+	</li>
+}
+
+templ UserToAppend(user db.User) {
+	<div id="users-list" hx-swap-oob="beforeend">
+		@User(user)
+	</div>
+	<div id="no-users" hx-swap-oob="delete"></div>
+}

@@ -1,0 +1,41 @@
+package templates
+
+templ LoginForm(errors map[string]string) {
+	<form
+		hx-post="/login"
+		hx-swap="outerHTML"
+		class=""
+	>
+		<div class="">
+			{{ id := "username" }}
+			<input
+				type="text"
+				name={ id }
+				placeholder="Username"
+				class=""
+				required
+			/>
+			@maybeValidationError(errors, id)
+		</div>
+		<div class="">
+			{{ id = "password" }}
+			<input
+				type="password"
+				name={ id }
+				placeholder="Password"
+				class=""
+				required
+			/>
+			@maybeValidationError(errors, id)
+		</div>
+		<div class="">
+			<button
+				type="submit"
+				class=""
+			>
+				Let me in
+			</button>
+			@spinner()
+		</div>
+	</form>
+}

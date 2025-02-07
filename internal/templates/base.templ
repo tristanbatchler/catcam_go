@@ -1,0 +1,61 @@
+package templates
+
+templ header(title string) {
+	<head>
+		<title>{ title }</title>
+		<meta charset="UTF-8"/>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+		<link rel="apple-touch-icon" sizes="180x180" href="/static/images/favicon/apple-touch-icon.png"/>
+		<link rel="icon" type="image/png" sizes="32x32" href="/static/images/favicon/favicon-32x32.png"/>
+		<link rel="icon" type="image/png" sizes="16x16" href="/static/images/favicon/favicon-16x16.png"/>
+		<link rel="manifest" href="/static/images/favicon/site.webmanifest"/>
+		<link rel="stylesheet" href="/static/css/style.css"/>
+		<script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+	</head>
+}
+
+templ Layout(contents templ.Component, title string) {
+	@header(title)
+	<body>
+		<main>
+			@contents
+		</main>
+		<script>
+			htmx.logger = function(elt, event, data) {
+				if(console) {
+					console.log(event, elt, data);
+				}
+			}
+		</script>
+		<script>
+            htmx.on("htmx:beforeSwap", (e) => {
+                // Allow these responses to swap
+                // We treat these as form validation errors
+				if (e.detail.xhr.status === 401) {
+					e.detail.shouldSwap = true;
+					e.detail.isError = true;
+				} else if (e.detail.xhr.status === 409) {
+                    e.detail.shouldSwap = true;
+                    e.detail.isError = false;
+				} else if (e.detail.xhr.status === 422) {
+					e.detail.shouldSwap = true;
+					e.detail.isError = false;
+                } else if (e.detail.xhr.status === 204) {
+					e.detail.shouldSwap = true;
+				}
+            });
+        </script>
+	</body>
+}
+
+templ maybeValidationError(errors map[string]string, id string) {
+	if msg, ok := errors[id]; ok {
+		<p class="text-red-500 text-xs mt-1">
+			{ msg }
+		</p>
+	}
+}
+
+templ spinner() {
+	<img id="spinner" src="/static/images/spinner.svg" class="htmx-indicator p-2 ml-auto filter invert"/>
+}
