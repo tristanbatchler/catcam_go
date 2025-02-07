@@ -15,6 +15,7 @@ import (
 
 	"catcam_go/internal/db"
 	"catcam_go/internal/middleware"
+	"catcam_go/internal/states"
 	"catcam_go/internal/store/users"
 	"catcam_go/internal/templates"
 
@@ -31,6 +32,7 @@ type server struct {
 	httpServer   *http.Server
 	userStore    *users.UserStore
 	sessionStore *CatCamSessionStore
+	light        *states.Light
 }
 
 // Creat a new server instance with the given logger and port
@@ -59,6 +61,7 @@ func NewServer(logger *log.Logger, port int, userStore *users.UserStore) (*serve
 		port:         port,
 		userStore:    userStore,
 		sessionStore: NewCatCamSessionStore(cookieStore, userStore),
+		light:        &states.Light{},
 	}, nil
 }
 
@@ -72,8 +75,10 @@ func (s *server) Start() error {
 
 	// define middleware
 	authMiddleware := middleware.Auth(s.sessionStore, s.userStore)
-	loggingMiddleware := middleware.Chain(middleware.ContentType, middleware.Logging)
-	authLoggingMiddleware := middleware.Chain(middleware.ContentType, middleware.Logging, authMiddleware)
+	htmlContentTypeMiddleware := middleware.ContentType("text/html; charset=utf-8")
+	loggingMiddleware := middleware.Chain(htmlContentTypeMiddleware, middleware.Logging)
+	authLoggingMiddleware := middleware.Chain(htmlContentTypeMiddleware, middleware.Logging, authMiddleware)
+	authLoggingImageMiddleware := middleware.Chain(middleware.ContentType("image/jpeg"), middleware.Logging, authMiddleware)
 
 	// unprotected routes:
 	fileServer := http.FileServer(http.Dir("./static"))
@@ -97,6 +102,11 @@ func (s *server) Start() error {
 	router.Handle("DELETE /user/{id}", authLoggingMiddleware(http.HandlerFunc(s.deleteUserHandler)))
 	router.Handle("GET /users", authLoggingMiddleware(http.HandlerFunc(s.listUsersHandler)))
 	router.Handle("GET /user/{id}", authLoggingMiddleware(http.HandlerFunc(s.getUserHandler)))
+
+	router.Handle("GET /feed", authLoggingImageMiddleware(http.HandlerFunc(s.feedHandler)))
+
+	router.Handle("POST /toggle-light", authLoggingMiddleware(http.HandlerFunc(s.toggleLightHandler)))
+	router.Handle("POST /set-color", authLoggingMiddleware(http.HandlerFunc(s.setColorHandler)))
 
 	// define server
 	s.httpServer = &http.Server{
@@ -162,7 +172,7 @@ func renderTemplate(w http.ResponseWriter, r *http.Request, t templ.Component, t
 func (s *server) homeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
-	renderTemplate(w, r, templates.Home(), "Home")
+	renderTemplate(w, r, templates.Home(s.light), "Home")
 }
 
 // GET /login
@@ -378,4 +388,30 @@ func (s *server) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 	s.userStore.SetUserLastLogin(r.Context(), user.ID)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// GET /feed
+func (s *server) feedHandler(w http.ResponseWriter, r *http.Request) {
+	// For now, just send back a static image
+	http.ServeFile(w, r, "./static/images/favicon/android-chrome-512x512.png")
+}
+
+// POST /toggle-light
+func (s *server) toggleLightHandler(w http.ResponseWriter, r *http.Request) {
+	s.light.IsOn = !s.light.IsOn
+	w.WriteHeader(http.StatusOK)
+	if s.light.IsOn {
+		w.Write([]byte("Light off")) // We are telling the button what its new text should be
+	} else {
+		w.Write([]byte("Light on"))
+	}
+}
+
+// POST /set-color
+func (s *server) setColorHandler(w http.ResponseWriter, r *http.Request) {
+	s.light.FromHex(r.FormValue("color"))
+
+	log.Printf("Set light color: %v", s.light)
+
+	w.WriteHeader(http.StatusNoContent)
 }

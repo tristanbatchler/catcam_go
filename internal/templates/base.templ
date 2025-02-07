@@ -16,8 +16,8 @@ templ header(title string) {
 
 templ Layout(contents templ.Component, title string) {
 	@header(title)
-	<body>
-		<main>
+	<body class="bg-beauty-50 text-marino-900">
+		<main class="container mx-auto p-4">
 			@contents
 		</main>
 		<script>
@@ -41,7 +41,7 @@ templ Layout(contents templ.Component, title string) {
 					e.detail.shouldSwap = true;
 					e.detail.isError = false;
                 } else if (e.detail.xhr.status === 204) {
-					e.detail.shouldSwap = true;
+					e.detail.shouldSwap = false;
 				}
             });
         </script>
@@ -50,7 +50,7 @@ templ Layout(contents templ.Component, title string) {
 
 templ maybeValidationError(errors map[string]string, id string) {
 	if msg, ok := errors[id]; ok {
-		<p class="">
+		<p class="text-flamingo-600">
 			{ msg }
 		</p>
 	}

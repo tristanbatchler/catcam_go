@@ -1,4 +1,35 @@
 package templates
 
-templ Home() {
+import "catcam_go/internal/states"
+
+templ Home(light *states.Light) {
+	<div class="text-center text-marino-700">
+		<a href="/"><h1 class="text-4xl font-bold">CatCam</h1></a>
+		<p class="mt-4">Your <span class="text-flamingo-600 font-bold">covert</span> cat spying solution</p>
+	</div>
+	<!-- Video feed (/feed) -->
+	<div class="mt-8">
+		<img id="feed" src="/feed" class="mx-auto"/>
+	</div>
+	<!-- Turn the light on/off and choose the color -->
+	<div class="mt-8">
+		<div class="flex justify-center">
+			{{ buttonText := "" }}
+			if light.IsOn {
+				{{ buttonText = "Light off" }}
+			} else {
+				{{ buttonText = "Light on" }}
+			}
+			<button id="light" class="bg-marino-700 text-beauty-50 font-bold py-2 px-4 rounded" hx-post="/toggle-light">{ buttonText }</button>
+		</div>
+		<form id="color" class="mt-4 flex justify-center items-center space-x-4">
+			<label for="color-picker" class="text-marino-700 font-bold">Choose color:</label>
+			<input id="color-picker" type="color" name="color" value={ light.Hex() } class="w-12 h-12 p-1 border-2 border-marino-700 rounded-full"/>
+			<button class="bg-beauty-700 hover:bg-beauty-900 text-beauty-50 font-bold py-2 px-4 rounded" hx-post="/set-color">Set color</button>
+		</form>
+	</div>
+	<!-- Footer -->
+	<div class="mt-8 text-center text-marino-700">
+		<p>&copy; 2025 CatCam</p>
+	</div>
 }

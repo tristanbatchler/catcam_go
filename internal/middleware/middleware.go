@@ -38,12 +38,14 @@ func Logging(next http.Handler) http.Handler {
 	})
 }
 
-// For injecting the content type header
-func ContentType(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		next.ServeHTTP(w, r)
-	})
+// ContentTypeMiddleware for setting content type
+func ContentType(contentTypeHeader string) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", contentTypeHeader)
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // ChainMiddleware allows chaining multiple middlewares

@@ -10,40 +10,40 @@ templ AddUserForm(formData db.User, errors map[string]string) {
 	<form
 		hx-post="/user"
 		hx-swap="outerHTML"
-		class=""
+		class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4"
 		id="add-user-form"
 	>
-		<div class="">
+		<div class="mb-4">
 			{{ id := "username" }}
-			<label for={ id } class="">Username</label>
+			<label for={ id } class="block text-marino-700 text-sm font-bold mb-2">Username</label>
 			<input
 				type="text"
 				name={ id }
-				class=""
+				class="shadow appearance-none border rounded w-full py-2 px-3 text-marino-700 leading-tight focus:outline-none focus:shadow-outline"
 				value={ formData.Username }
 				required
 			/>
 			@maybeValidationError(errors, id)
 		</div>
-		<div class="">
+		<div class="mb-4">
 			{{ id = "password" }}
-			<label for={ id } class="">Password</label>
+			<label for={ id } class="block text-marino-700 text-sm font-bold mb-2">Password</label>
 			<input
 				type="password"
 				id={ fmt.Sprintf("add-user-form-%s", id) }
 				name={ id }
-				class=""
+				class="shadow appearance-none border rounded w-full py-2 px-3 text-marino-700 leading-tight focus:outline-none focus:shadow-outline"
 				required
 			/>
 			@maybeValidationError(errors, id)
 		</div>
-		<div class="">
+		<div class="mb-4">
 			{{ id = "confirm-password" }}
-			<label for={ id } class="">Confirm Password</label>
+			<label for={ id } class="block text-marino-700 text-sm font-bold mb-2">Confirm Password</label>
 			<input
 				type="password"
 				name={ id }
-				class=""
+				class="shadow appearance-none border rounded w-full py-2 px-3 text-marino-700 leading-tight focus:outline-none focus:shadow-outline"
 				required
 				onkeyup="this.setCustomValidity('')"
 				hx-on:htmx:validation:validate="
@@ -54,10 +54,10 @@ templ AddUserForm(formData db.User, errors map[string]string) {
 			/>
 			@maybeValidationError(errors, id)
 		</div>
-		<div class="">
+		<div class="flex items-center justify-between">
 			<button
 				type="submit"
-				class=""
+				class="bg-marino-500 hover:bg-marino-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
 			>
 				Add User
 			</button>
@@ -67,14 +67,14 @@ templ AddUserForm(formData db.User, errors map[string]string) {
 }
 
 templ NoUsers() {
-	<div id="no-users" class="">
+	<div id="no-users" class="text-center text-marino-700">
 		<p>No users found</p>
 	</div>
 }
 
 templ UsersList(users []db.User, userStore *users.UserStore) {
 	<div class="users">
-		<article class="">
+		<article class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
 			<ul id="">
 				for _, user := range users {
 					@User(user)
@@ -90,19 +90,19 @@ templ UsersList(users []db.User, userStore *users.UserStore) {
 templ User(user db.User) {
 	{{ cssSelector := fmt.Sprintf("user-%d", user.ID) }}
 	{{ deleteResponseCssSelector := fmt.Sprintf("delete-response-%d", user.ID) }}
-	<li id={ cssSelector } hx-swap="outerHTML" hx-ext="response-targets">
+	<li id={ cssSelector } hx-swap="outerHTML" hx-ext="response-targets" class="mb-4">
 		<a
 			href="#"
-			class=""
+			class="block bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4"
 			hx-delete={ fmt.Sprintf("/user/%d", user.ID) }
 			hx-confirm={ fmt.Sprintf("Are you sure you want to delete %s?", user.Username) }
 			hx-target-error={ "#" + deleteResponseCssSelector }
 			hx-swap="innerHTML"
 		>
-			<div class="">
+			<div class="flex items-center justify-between">
 				<div>
-					<strong class="">{ user.Username }</strong>
-					<p class="">
+					<strong class="text-marino-700">{ user.Username }</strong>
+					<p class="text-marino-500">
 						if user.CreatedAt.Valid {
 							Created at { user.CreatedAt.Time.Format("2 Jan 2006") }
 						} else {
@@ -110,8 +110,8 @@ templ User(user db.User) {
 						}
 					</p>
 				</div>
-				<div class="">
-					<p id={ deleteResponseCssSelector } class=""></p>
+				<div class="text-right">
+					<p id={ deleteResponseCssSelector } class="text-flamingo-600"></p>
 				</div>
 				@spinner()
 			</div>
