@@ -398,15 +398,66 @@ func (s *server) feedHandler(w http.ResponseWriter, r *http.Request) {
 		s.camera.Start()
 	}
 
-	for frame := range s.camera.Stream() {
-		n := len(frame)
-		_, err := fmt.Fprintf(w, "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n%s\r\n", n, frame)
-		if err != nil {
-			s.logger.Printf("Error when writing frame: %v", err)
-			return
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	var frameBuffer []byte
+	var contentLength int
+	var inFrame bool // Whether we are currently receiving a frame
+
+	for buf := range s.camera.Stream() {
+		bufStr := string(buf)
+
+		// Detect start of a new frame
+		if strings.HasPrefix(bufStr, "Content-type:") {
+			inFrame = true
+			frameBuffer = nil // Reset buffer
+
+			// Extract Content-Length
+			lengthParts := strings.Split(bufStr, "Content-length:")
+			if len(lengthParts) < 2 {
+				s.logger.Println("Malformed frame: Missing Content-Length")
+				inFrame = false
+				continue
+			}
+
+			lengthStr := strings.Fields(lengthParts[1])[0]
+			length, err := strconv.Atoi(lengthStr)
+			if err != nil {
+				s.logger.Printf("Invalid Content-Length: %v", err)
+				inFrame = false
+				continue
+			}
+			contentLength = length
+
+			frameBeginParts := strings.Index(bufStr, "\r\n\r\n")
+			if frameBeginParts < 0 {
+				s.logger.Println("Malformed frame: Missing frame start")
+				inFrame = false
+				continue
+			}
+
+			// Start buffering frame
+			frameBuffer = append(frameBuffer, []byte(bufStr[frameBeginParts+4:])...)
+			continue
 		}
-		w.(http.Flusher).Flush()
-		s.logger.Printf("Sent frame of size %d", n)
+
+		// Accumulate frame data
+		if inFrame {
+			frameBuffer = append(frameBuffer, buf...)
+			lengthDiff := contentLength - len(frameBuffer)
+
+			if lengthDiff <= 0 {
+				// Full frame received, send to client
+				err := s.sendFrame(w, frameBuffer[:contentLength])
+				if err != nil {
+					s.logger.Printf("Error when sending frame: %v", err)
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				inFrame = false
+			}
+		}
 	}
 }
 
@@ -428,4 +479,22 @@ func (s *server) setColorHandler(w http.ResponseWriter, r *http.Request) {
 	s.logger.Printf("Set light color: %v", s.light)
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// sendFrame sends a complete JPEG frame to the client
+func (s *server) sendFrame(w http.ResponseWriter, frame []byte) error {
+	_, err := fmt.Fprintf(w, "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n", len(frame))
+	if err != nil {
+		s.logger.Printf("Error writing frame header: %v", err)
+		return err
+	}
+
+	_, err = w.Write(frame)
+	if err != nil {
+		s.logger.Printf("Error writing frame: %v", err)
+		return err
+	}
+
+	w.(http.Flusher).Flush()
+	return nil
 }

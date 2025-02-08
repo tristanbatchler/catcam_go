@@ -14,7 +14,7 @@ type Camera struct {
 	height  int
 	fps     int
 	quality int
-	frames  chan []byte // Buffered channel for frames
+	data    chan []byte // Buffered channel for frames
 	running bool
 }
 
@@ -34,7 +34,7 @@ func (c *Camera) Start() error {
 		return nil
 	}
 	c.running = true
-	c.frames = make(chan []byte, c.fps) // Buffer frames for 1 second
+	c.data = make(chan []byte, c.fps) // Buffer frames for 1 second
 
 	log.Println("Starting camera")
 	c.cmd = exec.Command(
@@ -42,7 +42,7 @@ func (c *Camera) Start() error {
 		"-f", "video4linux2",
 		"-s", fmt.Sprintf("%dx%d", c.width, c.height),
 		"-i", "/dev/video0",
-		"-f", "mjpeg",
+		"-f", "mpjpeg",
 		"-q:v", fmt.Sprintf("%d", c.quality),
 		"-vf", fmt.Sprintf("scale=%d:%d", c.width, c.height),
 		"-r", fmt.Sprintf("%d", c.fps),
@@ -64,10 +64,10 @@ func (c *Camera) Start() error {
 
 	go func() {
 		defer ticker.Stop()
-		defer close(c.frames)
+		defer close(c.data)
 		defer c.Stop()
 
-		buf := make([]byte, 61980) // TODO: Calculate buffer size
+		buf := make([]byte, 4096)
 
 		// Monitor frame reading
 		go func() {
@@ -92,13 +92,12 @@ func (c *Camera) Start() error {
 				return
 			}
 
-			// Copy data to avoid overwriting buffer
-			frameCopy := make([]byte, n)
-			copy(frameCopy, buf[:n])
+			data := make([]byte, n)
+			copy(data, buf[:n])
 
 			// Send frame to the channel (drop old frames if full)
 			select {
-			case c.frames <- frameCopy:
+			case c.data <- data:
 				lastFrameTime = time.Now()
 			default:
 				log.Println("Frame dropped: channel full") // Prevent blocking
@@ -125,9 +124,9 @@ func (c *Camera) Stop() {
 	log.Println("Camera stopped")
 }
 
-// Stream returns the frame channel for consumers
+// Stream returns the frame data channel for consumers
 func (c *Camera) Stream() <-chan []byte {
-	return c.frames
+	return c.data
 }
 
 func (c *Camera) IsRunning() bool {
