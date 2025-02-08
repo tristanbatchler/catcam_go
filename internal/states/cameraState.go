@@ -1,6 +1,7 @@
 package states
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"log"
@@ -14,8 +15,8 @@ type Camera struct {
 	width       int
 	height      int
 	fps         int
-	compression int
-	stream      chan []byte // Buffered channel for frames
+	quality     int
+	stream      chan []byte
 	subscribers map[chan []byte]struct{}
 	mu          sync.Mutex
 	running     bool
@@ -23,12 +24,12 @@ type Camera struct {
 }
 
 // NewCamera initializes the camera with a buffered channel
-func NewCamera(width, height, fps int, compression int, bufferSize int) *Camera {
+func NewCamera(width, height, fps int, quality int, bufferSize int) *Camera {
 	return &Camera{
 		width:       width,
 		height:      height,
 		fps:         fps,
-		compression: compression,
+		quality:     quality,
 		bufferSize:  bufferSize,
 		stream:      make(chan []byte, bufferSize),
 		subscribers: make(map[chan []byte]struct{}),
@@ -62,17 +63,32 @@ func (c *Camera) Start() error {
 	c.stream = make(chan []byte, c.fps) // Buffer frames for 1 second
 
 	log.Println("Starting camera")
+
+	// For Raspberry Pi 5
 	c.cmd = exec.Command(
-		"ffmpeg",
-		"-f", "video4linux2",
-		"-s", fmt.Sprintf("%dx%d", c.width, c.height),
-		"-i", "/dev/video0",
-		"-f", "mpjpeg",
-		"-q:v", fmt.Sprintf("%d", c.compression),
-		"-vf", fmt.Sprintf("scale=%d:%d", c.width, c.height),
-		"-r", fmt.Sprintf("%d", c.fps),
-		"pipe:1",
+		"libcamera-vid",
+		"-t", "0",
+		"--codec", "mjpeg",
+		"--width", fmt.Sprintf("%d", c.width),
+		"--height", fmt.Sprintf("%d", c.height),
+		"--framerate", fmt.Sprintf("%d", c.fps),
+		"--quality", fmt.Sprintf("%d", c.quality),
+		"--inline",
+		"-o", "-",
 	)
+
+	// For USB webcam
+	// c.cmd = exec.Command(
+	// 	"ffmpeg",
+	// 	"-f", "video4linux2",
+	// 	"-s", fmt.Sprintf("%dx%d", c.width, c.height),
+	// 	"-i", "/dev/video0",
+	// 	"-f", "mpjpeg",
+	// 	"-q:v", fmt.Sprintf("%d", c.compression),
+	// 	"-vf", fmt.Sprintf("scale=%d:%d", c.width, c.height),
+	// 	"-r", fmt.Sprintf("%d", c.fps),
+	// 	"pipe:1",
+	// )
 
 	stdout, err := c.cmd.StdoutPipe()
 	if err != nil {
@@ -106,6 +122,10 @@ func (c *Camera) Start() error {
 		}()
 
 		// Read frames and send them over the channel
+		var frameBuffer []byte
+		const jpegSOI = "\xFF\xD8" // Start of Image marker
+		const jpegEOI = "\xFF\xD9" // End of Image marker
+
 		for c.running {
 			n, err := stdout.Read(buf)
 			if err != nil {
@@ -117,15 +137,24 @@ func (c *Camera) Start() error {
 				return
 			}
 
-			data := make([]byte, n)
-			copy(data, buf[:n])
+			frameBuffer = append(frameBuffer, buf[:n]...)
 
-			// Send frame to the channel (drop old frames if full)
-			select {
-			case c.stream <- data:
-				lastFrameTime = time.Now()
-			default:
-				log.Println("Frame dropped: channel full") // Prevent blocking
+			// Look for a complete JPEG frame
+			startIdx := bytes.Index(frameBuffer, []byte(jpegSOI))
+			endIdx := bytes.Index(frameBuffer, []byte(jpegEOI))
+
+			if startIdx != -1 && endIdx != -1 && startIdx < endIdx {
+				// Extract and send the complete frame
+				frame := frameBuffer[startIdx : endIdx+2]
+				select {
+				case c.stream <- frame:
+					lastFrameTime = time.Now()
+				default:
+					log.Println("Frame dropped: channel full")
+				}
+
+				// Remove processed frame from buffer
+				frameBuffer = frameBuffer[endIdx+2:]
 			}
 		}
 	}()

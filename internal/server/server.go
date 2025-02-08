@@ -63,7 +63,7 @@ func NewServer(logger *log.Logger, port int, userStore *users.UserStore) (*serve
 		userStore:    userStore,
 		sessionStore: NewCatCamSessionStore(cookieStore, userStore),
 		light:        &states.Light{},
-		camera:       states.NewCamera(1600/2, 896/2, 60, 7, 5),
+		camera:       states.NewCamera(1296/1.5, 972/1.5, 45, 30, 1),
 	}, nil
 }
 
@@ -395,71 +395,26 @@ func (s *server) loginHandler(w http.ResponseWriter, r *http.Request) {
 // GET /feed
 func (s *server) feedHandler(w http.ResponseWriter, r *http.Request) {
 	if !s.camera.IsRunning() {
-		s.camera.Start()
+		err := s.camera.Start()
+		if err != nil {
+			s.logger.Printf("Couldn't start camera: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 	}
 
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	var frameBuffer []byte
-	var contentLength int
-	var inFrame bool // Whether we are currently receiving a frame
-
 	clientStream := s.camera.Subscribe()
 	defer s.camera.Unsubscribe(clientStream)
 
 	for buf := range clientStream {
-		bufStr := string(buf)
-
-		// Detect start of a new frame
-		if strings.HasPrefix(bufStr, "Content-type:") {
-			inFrame = true
-			frameBuffer = nil // Reset buffer
-
-			// Extract Content-Length
-			lengthParts := strings.Split(bufStr, "Content-length:")
-			if len(lengthParts) < 2 {
-				s.logger.Println("Malformed frame: Missing Content-Length")
-				inFrame = false
-				continue
-			}
-
-			lengthStr := strings.Fields(lengthParts[1])[0]
-			length, err := strconv.Atoi(lengthStr)
-			if err != nil {
-				s.logger.Printf("Invalid Content-Length: %v", err)
-				inFrame = false
-				continue
-			}
-			contentLength = length
-
-			frameBeginParts := strings.Index(bufStr, "\r\n\r\n")
-			if frameBeginParts < 0 {
-				s.logger.Println("Malformed frame: Missing frame start")
-				inFrame = false
-				continue
-			}
-
-			// Start buffering frame
-			frameBuffer = append(frameBuffer, []byte(bufStr[frameBeginParts+4:])...)
-			continue
-		}
-
-		// Accumulate frame data
-		if inFrame {
-			frameBuffer = append(frameBuffer, buf...)
-			lengthDiff := contentLength - len(frameBuffer)
-
-			if lengthDiff <= 0 {
-				// Full frame received, send to client
-				err := s.sendFrame(w, frameBuffer[:contentLength])
-				if err != nil {
-					s.logger.Printf("Error when sending frame: %v", err)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				inFrame = false
-			}
+		err := s.sendFrame(w, buf)
+		if err != nil {
+			s.logger.Printf("Error when sending frame: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 	}
 }
@@ -487,6 +442,7 @@ func (s *server) setColorHandler(w http.ResponseWriter, r *http.Request) {
 // sendFrame sends a complete JPEG frame to the client
 func (s *server) sendFrame(w http.ResponseWriter, frame []byte) error {
 	_, err := fmt.Fprintf(w, "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n", len(frame))
+
 	if err != nil {
 		s.logger.Printf("Error writing frame header: %v", err)
 		return err
@@ -497,7 +453,6 @@ func (s *server) sendFrame(w http.ResponseWriter, frame []byte) error {
 		s.logger.Printf("Error writing frame: %v", err)
 		return err
 	}
-
 	w.(http.Flusher).Flush()
 	return nil
 }
