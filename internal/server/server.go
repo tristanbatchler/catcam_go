@@ -33,6 +33,7 @@ type server struct {
 	userStore    *users.UserStore
 	sessionStore *CatCamSessionStore
 	light        *states.Light
+	camera       *states.Camera
 }
 
 // Creat a new server instance with the given logger and port
@@ -62,6 +63,7 @@ func NewServer(logger *log.Logger, port int, userStore *users.UserStore) (*serve
 		userStore:    userStore,
 		sessionStore: NewCatCamSessionStore(cookieStore, userStore),
 		light:        &states.Light{},
+		camera:       states.NewCamera(1600/2, 896/2, 60, 5),
 	}, nil
 }
 
@@ -78,7 +80,7 @@ func (s *server) Start() error {
 	htmlContentTypeMiddleware := middleware.ContentType("text/html; charset=utf-8")
 	loggingMiddleware := middleware.Chain(htmlContentTypeMiddleware, middleware.Logging)
 	authLoggingMiddleware := middleware.Chain(htmlContentTypeMiddleware, middleware.Logging, authMiddleware)
-	authLoggingImageMiddleware := middleware.Chain(middleware.ContentType("image/jpeg"), middleware.Logging, authMiddleware)
+	authLoggingFeedMiddleware := middleware.Chain(middleware.ContentType("multipart/x-mixed-replace; boundary=frame"), middleware.Logging, authMiddleware)
 
 	// unprotected routes:
 	fileServer := http.FileServer(http.Dir("./static"))
@@ -103,7 +105,7 @@ func (s *server) Start() error {
 	router.Handle("GET /users", authLoggingMiddleware(http.HandlerFunc(s.listUsersHandler)))
 	router.Handle("GET /user/{id}", authLoggingMiddleware(http.HandlerFunc(s.getUserHandler)))
 
-	router.Handle("GET /feed", authLoggingImageMiddleware(http.HandlerFunc(s.feedHandler)))
+	router.Handle("GET /feed", authLoggingFeedMiddleware(http.HandlerFunc(s.feedHandler)))
 
 	router.Handle("POST /toggle-light", authLoggingMiddleware(http.HandlerFunc(s.toggleLightHandler)))
 	router.Handle("POST /set-color", authLoggingMiddleware(http.HandlerFunc(s.setColorHandler)))
@@ -120,7 +122,7 @@ func (s *server) Start() error {
 
 	go func() {
 		if err := s.httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Error when running server: %s", err)
+			s.logger.Fatalf("Error when running server: %s", err)
 		}
 	}()
 
@@ -130,7 +132,7 @@ func (s *server) Start() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := s.httpServer.Shutdown(shutdownCtx); err != nil {
-		log.Fatalf("Error when shutting down server: %v", err)
+		s.logger.Fatalf("Error when shutting down server: %v", err)
 		return err
 	}
 	return nil
@@ -172,7 +174,7 @@ func renderTemplate(w http.ResponseWriter, r *http.Request, t templ.Component, t
 func (s *server) homeHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
-	renderTemplate(w, r, templates.Home(s.light), "Home")
+	renderTemplate(w, r, templates.Home(s.light, s.camera), "Home")
 }
 
 // GET /login
@@ -392,8 +394,20 @@ func (s *server) loginHandler(w http.ResponseWriter, r *http.Request) {
 
 // GET /feed
 func (s *server) feedHandler(w http.ResponseWriter, r *http.Request) {
-	// For now, just send back a static image
-	http.ServeFile(w, r, "./static/images/favicon/android-chrome-512x512.png")
+	if !s.camera.IsRunning() {
+		s.camera.Start()
+	}
+
+	for frame := range s.camera.Stream() {
+		n := len(frame)
+		_, err := fmt.Fprintf(w, "--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n%s\r\n", n, frame)
+		if err != nil {
+			s.logger.Printf("Error when writing frame: %v", err)
+			return
+		}
+		w.(http.Flusher).Flush()
+		s.logger.Printf("Sent frame of size %d", n)
+	}
 }
 
 // POST /toggle-light
@@ -411,7 +425,7 @@ func (s *server) toggleLightHandler(w http.ResponseWriter, r *http.Request) {
 func (s *server) setColorHandler(w http.ResponseWriter, r *http.Request) {
 	s.light.FromHex(r.FormValue("color"))
 
-	log.Printf("Set light color: %v", s.light)
+	s.logger.Printf("Set light color: %v", s.light)
 
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -1,15 +1,27 @@
 package templates
 
-import "catcam_go/internal/states"
+import (
+	"catcam_go/internal/states"
+	"fmt"
+)
 
-templ Home(light *states.Light) {
+templ Home(light *states.Light, camera *states.Camera) {
 	<div class="text-center text-marino-700">
 		<a href="/"><h1 class="text-4xl font-bold">CatCam</h1></a>
 		<p class="mt-4">Your <span class="text-flamingo-600 font-bold">covert</span> cat spying solution</p>
 	</div>
 	<!-- Video feed (/feed) -->
 	<div class="mt-8">
-		<img id="feed" src="/feed" class="mx-auto"/>
+		<img
+			id="feed"
+			alt="A feed of the cats (hopefully)"
+			src="/feed"
+			srcset="/feed"
+			width={ fmt.Sprintf("%d", camera.Width()) }
+			height={ fmt.Sprintf("%d", camera.Height()) }
+			sizes={ fmt.Sprintf("(max-width: %dpx) 100vw, %dpx", camera.Width(), camera.Height()) }
+			class="mx-auto rounded-lg"
+		/>
 	</div>
 	<!-- Turn the light on/off and choose the color -->
 	<div class="mt-8">
