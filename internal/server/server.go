@@ -405,7 +405,10 @@ func (s *server) feedHandler(w http.ResponseWriter, r *http.Request) {
 	var contentLength int
 	var inFrame bool // Whether we are currently receiving a frame
 
-	for buf := range s.camera.Stream() {
+	clientStream := s.camera.Subscribe()
+	defer s.camera.Unsubscribe(clientStream)
+
+	for buf := range clientStream {
 		bufStr := string(buf)
 
 		// Detect start of a new frame

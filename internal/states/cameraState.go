@@ -5,27 +5,51 @@ import (
 	"io"
 	"log"
 	"os/exec"
+	"sync"
 	"time"
 )
 
 type Camera struct {
-	cmd     *exec.Cmd
-	width   int
-	height  int
-	fps     int
-	quality int
-	data    chan []byte // Buffered channel for frames
-	running bool
+	cmd         *exec.Cmd
+	width       int
+	height      int
+	fps         int
+	quality     int
+	stream      chan []byte // Buffered channel for frames
+	subscribers map[chan []byte]struct{}
+	mu          sync.Mutex
+	running     bool
+	bufferSize  int
 }
 
 // NewCamera initializes the camera with a buffered channel
-func NewCamera(width int, height int, fps int, quality int) *Camera {
+func NewCamera(width, height, fps int, bufferSize int) *Camera {
 	return &Camera{
-		width:   width,
-		height:  height,
-		fps:     fps,
-		quality: quality,
+		width:       width,
+		height:      height,
+		fps:         fps,
+		bufferSize:  bufferSize,
+		stream:      make(chan []byte, bufferSize),
+		subscribers: make(map[chan []byte]struct{}),
 	}
+}
+
+// Subscribe adds a new client stream channel
+func (c *Camera) Subscribe() chan []byte {
+	log.Println("New subscriber")
+	ch := make(chan []byte, c.fps*c.bufferSize)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.subscribers[ch] = struct{}{}
+	return ch
+}
+
+// Unsubscribe removes a client stream channel
+func (c *Camera) Unsubscribe(ch chan []byte) {
+	log.Println("Subscriber left")
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.subscribers, ch)
 }
 
 // Start launches FFmpeg and streams frames into the channel
@@ -34,7 +58,7 @@ func (c *Camera) Start() error {
 		return nil
 	}
 	c.running = true
-	c.data = make(chan []byte, c.fps) // Buffer frames for 1 second
+	c.stream = make(chan []byte, c.fps) // Buffer frames for 1 second
 
 	log.Println("Starting camera")
 	c.cmd = exec.Command(
@@ -64,7 +88,7 @@ func (c *Camera) Start() error {
 
 	go func() {
 		defer ticker.Stop()
-		defer close(c.data)
+		defer close(c.stream)
 		defer c.Stop()
 
 		buf := make([]byte, 4096)
@@ -97,11 +121,26 @@ func (c *Camera) Start() error {
 
 			// Send frame to the channel (drop old frames if full)
 			select {
-			case c.data <- data:
+			case c.stream <- data:
 				lastFrameTime = time.Now()
 			default:
 				log.Println("Frame dropped: channel full") // Prevent blocking
 			}
+		}
+	}()
+
+	// Broadcast frames to all subscribers
+	go func() {
+		for frame := range c.stream {
+			c.mu.Lock()
+			for ch := range c.subscribers {
+				select {
+				case ch <- frame:
+				default:
+					log.Println("Frame dropped: subscriber channel full")
+				}
+			}
+			c.mu.Unlock()
 		}
 	}()
 
@@ -122,11 +161,6 @@ func (c *Camera) Stop() {
 		}
 	}
 	log.Println("Camera stopped")
-}
-
-// Stream returns the frame data channel for consumers
-func (c *Camera) Stream() <-chan []byte {
-	return c.data
 }
 
 func (c *Camera) IsRunning() bool {
