@@ -14,7 +14,7 @@ type Camera struct {
 	width       int
 	height      int
 	fps         int
-	quality     int
+	compression int
 	stream      chan []byte // Buffered channel for frames
 	subscribers map[chan []byte]struct{}
 	mu          sync.Mutex
@@ -23,11 +23,12 @@ type Camera struct {
 }
 
 // NewCamera initializes the camera with a buffered channel
-func NewCamera(width, height, fps int, bufferSize int) *Camera {
+func NewCamera(width, height, fps int, compression int, bufferSize int) *Camera {
 	return &Camera{
 		width:       width,
 		height:      height,
 		fps:         fps,
+		compression: compression,
 		bufferSize:  bufferSize,
 		stream:      make(chan []byte, bufferSize),
 		subscribers: make(map[chan []byte]struct{}),
@@ -67,7 +68,7 @@ func (c *Camera) Start() error {
 		"-s", fmt.Sprintf("%dx%d", c.width, c.height),
 		"-i", "/dev/video0",
 		"-f", "mpjpeg",
-		"-q:v", fmt.Sprintf("%d", c.quality),
+		"-q:v", fmt.Sprintf("%d", c.compression),
 		"-vf", fmt.Sprintf("scale=%d:%d", c.width, c.height),
 		"-r", fmt.Sprintf("%d", c.fps),
 		"pipe:1",

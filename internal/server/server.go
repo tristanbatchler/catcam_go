@@ -63,7 +63,7 @@ func NewServer(logger *log.Logger, port int, userStore *users.UserStore) (*serve
 		userStore:    userStore,
 		sessionStore: NewCatCamSessionStore(cookieStore, userStore),
 		light:        &states.Light{},
-		camera:       states.NewCamera(1600/2, 896/2, 60, 5),
+		camera:       states.NewCamera(1600/2, 896/2, 60, 7, 5),
 	}, nil
 }
 
