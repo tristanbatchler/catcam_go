@@ -1,0 +1,6 @@
+rpi_ws281x 
+adafruit-circuitpython-neopixel
+adafruit-blinka
+Adafruit-Blinka-Raspberry-Pi5-Neopixel
+adafruit-circuitpython-pixelbuf
+adafruit-circuitpython-led-animation

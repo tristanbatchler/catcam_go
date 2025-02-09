@@ -46,3 +46,13 @@
     export SESSION_KEY="AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ```
     Replace `AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=` with the base64 string generated in the previous step.
+
+### Setup the scripts environment
+
+1. Setup a virtual environment for the Python scripts
+    ``` sh
+    cd scripts
+    python -m venv .venv
+    . .venv/bin/activate
+    pip install -r requirements.txt
+    ```

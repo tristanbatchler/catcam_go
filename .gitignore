@@ -6,3 +6,5 @@
 db.sqlite
 .env
 nohup.out
+/scripts/.venv/
+main
