@@ -76,7 +76,7 @@ func (c *Camera) Start() error {
 
 	// For Raspberry Pi 5
 	c.cmd = exec.Command(
-		"libcamera-vid",
+		"rpicam-vid",
 		"-t", "0",
 		"--codec", "mjpeg",
 		"--width", fmt.Sprintf("%d", c.width),

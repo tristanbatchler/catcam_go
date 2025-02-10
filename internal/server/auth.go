@@ -39,10 +39,11 @@ func (s *CatCamSessionStore) ValidateSession(r *http.Request) (int64, error) {
 	}
 
 	// Validate the user exists
-	_, err = s.userStore.GetUserById(r.Context(), userId)
-	if err != nil {
-		return 0, fmt.Errorf("Error when validating userId in session (could not get user by ID): %v", err)
-	}
+	// Currently commented out for performance reasons, plus it's not that useful to me for this app
+	// _, err = s.userStore.GetUserById(r.Context(), userId)
+	// if err != nil {
+	// 	return 0, fmt.Errorf("Error when validating userId in session (could not get user by ID): %v", err)
+	// }
 
 	return userId, nil
 }
