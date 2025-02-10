@@ -1,5 +1,4 @@
-#!./.venv/bin/python
-
+#!/home/t/catcam_go/scripts/.venv/bin/python
 import time
 import argparse
 import adafruit_pixelbuf
@@ -23,7 +22,8 @@ def main():
     parser = argparse.ArgumentParser(description="Control NeoPixels on a Raspberry Pi 5.")
     parser.add_argument("pin", type=str, help="GPIO pin for NeoPixels (e.g., D14)")
     parser.add_argument("num_pixels", type=int, help="Number of pixels in the strip")
-    parser.add_argument("animation", type=str, choices=["rainbow", "rainbow_chase", "rainbow_comet", "rainbow_sparkle", "cycle"], help="Animation to run")
+    parser.add_argument("animation", type=str, choices=["rainbow", "rainbow_chase", "rainbow_comet", "rainbow_sparkle", "cycle", "solid"], help="Animation to run")
+    parser.add_argument("--color", type=str, default="FFFFFF", help="Hex color for solid mode (default: white)")
     args = parser.parse_args()
 
     try:
@@ -52,12 +52,15 @@ def main():
             "cycle": animations,
         }
 
-        selected_animation = animation_map[args.animation]
-        print(f"Running {args.animation} animation...")
-
-        while True:
+        if args.animation == "solid":
+            color = tuple(int(args.color[i:i+2], 16) for i in (0, 2, 4))
+            print(f"Displaying solid color #{args.color}")
+            pixels.fill(color)
+            pixels.show()
+        else:
+            selected_animation = animation_map[args.animation]
+            print(f"Running {args.animation} animation...")
             selected_animation.animate()
-            time.sleep(0.02)
     
     except KeyboardInterrupt:
         print("\nStopping animation...")

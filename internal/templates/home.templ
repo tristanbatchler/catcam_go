@@ -27,7 +27,7 @@ templ Home(light *states.Light, camera *states.Camera) {
 	<div class="mt-8">
 		<div class="flex justify-center">
 			{{ buttonText := "" }}
-			if light.IsOn {
+			if light.IsOn() {
 				{{ buttonText = "Light off" }}
 			} else {
 				{{ buttonText = "Light on" }}

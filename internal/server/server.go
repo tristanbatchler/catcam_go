@@ -62,7 +62,7 @@ func NewServer(logger *log.Logger, port int, userStore *users.UserStore) (*serve
 		port:         port,
 		userStore:    userStore,
 		sessionStore: NewCatCamSessionStore(cookieStore, userStore),
-		light:        &states.Light{},
+		light:        states.NewLight(),
 		camera:       states.NewCamera(1296/1.5, 972/1.5, 45, 30, 1),
 	}, nil
 }
@@ -421,9 +421,9 @@ func (s *server) feedHandler(w http.ResponseWriter, r *http.Request) {
 
 // POST /toggle-light
 func (s *server) toggleLightHandler(w http.ResponseWriter, r *http.Request) {
-	s.light.IsOn = !s.light.IsOn
+	s.light.Toggle()
 	w.WriteHeader(http.StatusOK)
-	if s.light.IsOn {
+	if s.light.IsOn() {
 		w.Write([]byte("Light off")) // We are telling the button what its new text should be
 	} else {
 		w.Write([]byte("Light on"))

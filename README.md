@@ -50,9 +50,15 @@
 ### Setup the scripts environment
 
 1. Setup a virtual environment for the Python scripts
-    ``` sh
+    ```sh
     cd scripts
     python -m venv .venv
     . .venv/bin/activate
     pip install -r requirements.txt
+    chmod +x control_leds.py
+    ```
+
+1. Edit the shebang line to point to your absolute path if necessary
+    ```sh
+    #!/home/you/whatever/scripts/.venv/bin/python
     ```
