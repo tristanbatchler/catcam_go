@@ -26,6 +26,11 @@
     sudo mv tailwindcss-linux-x64 tailwindcss
     ```
 
+1. sqlc generates Go code from SQL:
+    ```sh
+    go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+    ```
+
 1. Run the `Watch all` task by pressing `Ctrl+Shift+P` and typing `Tasks: Run Task` and selecting `Watch all`. You will see three tasks in their own terminal windows down the button-right of the screen. Feel free to split the terminal window into three panes and run each task in its own pane.
 
 1. Press F5 to attach the debugger to the server, but whenever Air reloads the page, the debugger will be detached. You can reattach the debugger by pressing F5 again.
