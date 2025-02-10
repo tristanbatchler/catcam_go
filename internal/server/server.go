@@ -57,13 +57,15 @@ func NewServer(logger *log.Logger, port int, userStore *users.UserStore) (*serve
 
 	cookieStore := sessions.NewCookieStore(sessionKeyBytes)
 
+	light := states.NewLight()
+
 	return &server{
 		logger:       logger,
 		port:         port,
 		userStore:    userStore,
 		sessionStore: NewCatCamSessionStore(cookieStore, userStore),
-		light:        states.NewLight(),
-		camera:       states.NewCamera(1296/1.5, 972/1.5, 45, 30, 1),
+		light:        light,
+		camera:       states.NewCamera(1296/1.5, 972/1.5, 45, 30, 1, light),
 	}, nil
 }
 

@@ -29,7 +29,9 @@ func (l *Light) Hex() string {
 
 func (l *Light) FromHex(hex string) {
 	fmt.Sscanf(hex, "#%02x%02x%02x", &l.red, &l.green, &l.blue)
-	l.updateLights(hex)
+	if l.isOn {
+		l.updateLights(hex)
+	}
 }
 
 func (l *Light) IsOn() bool {

@@ -11,47 +11,57 @@ import (
 )
 
 type Camera struct {
-	cmd         *exec.Cmd
-	width       int
-	height      int
-	fps         int
-	quality     int
-	stream      chan []byte
-	subscribers map[chan []byte]struct{}
-	mu          sync.Mutex
-	running     bool
-	bufferSize  int
+	cmd                    *exec.Cmd
+	width                  int
+	height                 int
+	fps                    int
+	quality                int
+	stream                 chan []byte
+	subscribers            map[chan []byte]struct{}
+	mu                     sync.Mutex
+	running                bool
+	bufferSize             int
+	timeSinceNoSubscribers time.Time
+	light                  *Light
 }
 
 // NewCamera initializes the camera with a buffered channel
-func NewCamera(width, height, fps int, quality int, bufferSize int) *Camera {
+func NewCamera(width, height, fps int, quality int, bufferSize int, light *Light) *Camera {
 	return &Camera{
-		width:       width,
-		height:      height,
-		fps:         fps,
-		quality:     quality,
-		bufferSize:  bufferSize,
-		stream:      make(chan []byte, bufferSize),
-		subscribers: make(map[chan []byte]struct{}),
+		width:                  width,
+		height:                 height,
+		fps:                    fps,
+		quality:                quality,
+		bufferSize:             bufferSize,
+		stream:                 make(chan []byte, bufferSize),
+		subscribers:            make(map[chan []byte]struct{}),
+		timeSinceNoSubscribers: time.Now(),
+		light:                  light,
 	}
 }
 
 // Subscribe adds a new client stream channel
 func (c *Camera) Subscribe() chan []byte {
-	log.Println("New subscriber")
 	ch := make(chan []byte, c.fps*c.bufferSize)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.subscribers[ch] = struct{}{}
+	log.Printf("New subscriber. Num subscribers now: %d", len(c.subscribers))
+	c.timeSinceNoSubscribers = time.Time{}
 	return ch
 }
 
 // Unsubscribe removes a client stream channel
 func (c *Camera) Unsubscribe(ch chan []byte) {
-	log.Println("Subscriber left")
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.subscribers, ch)
+	numSubs := len(c.subscribers)
+	log.Printf("Subscriber left. Num subscribers now: %d", numSubs)
+
+	if numSubs <= 0 {
+		c.timeSinceNoSubscribers = time.Now()
+	}
 }
 
 // Start launches FFmpeg and streams frames into the channel
@@ -100,7 +110,6 @@ func (c *Camera) Start() error {
 	}
 
 	// Frame drop detection
-	lastFrameTime := time.Now()
 	ticker := time.NewTicker(1 * time.Second)
 
 	go func() {
@@ -109,17 +118,6 @@ func (c *Camera) Start() error {
 		defer c.Stop()
 
 		buf := make([]byte, 4096)
-
-		// Monitor frame reading
-		go func() {
-			for range ticker.C {
-				if time.Since(lastFrameTime) > 5*time.Second {
-					log.Println("No frames received for 5 seconds. Stopping camera.")
-					c.Stop()
-					return
-				}
-			}
-		}()
 
 		// Read frames and send them over the channel
 		var frameBuffer []byte
@@ -148,7 +146,6 @@ func (c *Camera) Start() error {
 				frame := frameBuffer[startIdx : endIdx+2]
 				select {
 				case c.stream <- frame:
-					lastFrameTime = time.Now()
 				default:
 					log.Println("Frame dropped: channel full")
 				}
@@ -174,6 +171,17 @@ func (c *Camera) Start() error {
 		}
 	}()
 
+	// Monitor time since last subscriber left and shut down
+	go func() {
+		for range ticker.C {
+			if !c.timeSinceNoSubscribers.IsZero() && time.Since(c.timeSinceNoSubscribers) > 5*time.Second {
+				log.Println("No subscribers for 5 seconds. Stopping camera.")
+				c.Stop()
+				return
+			}
+		}
+	}()
+
 	return nil
 }
 
@@ -191,6 +199,10 @@ func (c *Camera) Stop() {
 		}
 	}
 	log.Println("Camera stopped")
+
+	c.light.TurnOff()
+	c.light.Stop()
+	log.Println("Light stopped too")
 }
 
 func (c *Camera) IsRunning() bool {
