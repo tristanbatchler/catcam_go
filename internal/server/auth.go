@@ -56,6 +56,8 @@ func (s *CatCamSessionStore) WriteNew(w http.ResponseWriter, r *http.Request, us
 	session.Options = &sessions.Options{
 		MaxAge:   3600, // 1 hour
 		HttpOnly: true, // JS cannot access the cookie
+		Domain:   "tbat.me",
+		SameSite: http.SameSiteLaxMode,
 	}
 
 	session.Values["userId"] = userId
